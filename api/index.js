@@ -1,3 +1,20 @@
+<<<<<<< HEAD
 const app = require("../app");
 
 module.exports = app;
+=======
+const http = require("http");
+const app = require("../app");
+const { initializeSocket } = require("../socket");
+
+const port = process.env.PORT || 4000;
+
+const server = http.createServer(app);
+
+// Initialize Socket.io
+initializeSocket(server);
+
+server.listen(port, () => {
+  console.log(`Server is Running on port ${port}`);
+});
+>>>>>>> 34a3671 (Add complete backend)
