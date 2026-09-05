@@ -1,14 +1,10 @@
-<<<<<<< HEAD
+
 const { Server } = require("socket.io");
-=======
-const socketIo = require("socket.io");
->>>>>>> 34a3671 (Add complete backend)
 
 const userModel = require("./models/user.model");
 const captainModel = require("./models/captain.model");
 const Ride = require("./models/ride.model");
 
-<<<<<<< HEAD
 let io = null;
 
 // ======================================================
@@ -21,17 +17,10 @@ function initializeSocket(server) {
     }
 
     io = new Server(server, {
-=======
-let io;
-
-function initializeSocket(server) {
-    io = socketIo(server, {
->>>>>>> 34a3671 (Add complete backend)
         cors: {
             origin: "*",
             methods: ["GET", "POST"],
         },
-<<<<<<< HEAD
         transports: ["websocket", "polling"],
     });
 
@@ -143,15 +132,11 @@ function initializeSocket(server) {
                 const { rideId } = data || {};
 
                 if (!rideId) {
-                    console.log(
-                        "⚠️ rideId missing"
-                    );
+                    console.log("⚠️ rideId missing");
                     return;
                 }
 
-                const ride = await Ride.findById(
-                    rideId
-                );
+                const ride = await Ride.findById(rideId);
 
                 if (!ride) {
                     console.log(
@@ -161,27 +146,16 @@ function initializeSocket(server) {
                     return;
                 }
 
-                // ------------------------------------------
                 // Mark ride completed
-                // ------------------------------------------
-
                 ride.status = "completed";
-
                 await ride.save();
 
-                // ------------------------------------------
                 // Find captain
-                // ------------------------------------------
+                const captain = await captainModel.findOne({
+                    socketId: socket.id,
+                });
 
-                const captain =
-                    await captainModel.findOne({
-                        socketId: socket.id,
-                    });
-
-                // ------------------------------------------
                 // Update captain earnings
-                // ------------------------------------------
-
                 if (captain) {
                     await captainModel.findByIdAndUpdate(
                         captain._id,
@@ -205,18 +179,14 @@ function initializeSocket(server) {
                                 event: "ride-completed",
                                 data: {
                                     ride,
-                                    captain:
-                                        updatedCaptain,
+                                    captain: updatedCaptain,
                                 },
                             }
                         );
                     }
                 }
 
-                // ------------------------------------------
                 // Notify user
-                // ------------------------------------------
-
                 const user =
                     await userModel.findById(
                         ride.user
@@ -345,134 +315,10 @@ function getIO() {
 // ======================================================
 // EXPORTS
 // ======================================================
-=======
-    });
-
-    io.on("connection", (socket) => {
-        console.log("✅ Socket connected:", socket.id);
-
-        // ================= JOIN =================
-        socket.on("join", async (data) => {
-            try {
-                const { userId, userType } = data;
-
-                if (userType === "user") {
-                    await userModel.findByIdAndUpdate(userId, {
-                        socketId: socket.id,
-                    });
-                }
-
-                if (userType === "captain") {
-                    await captainModel.findByIdAndUpdate(userId, {
-                        socketId: socket.id,
-                    });
-                }
-
-                console.log("👤 JOINED:", data);
-            } catch (err) {
-                console.log(err);
-            }
-        });
-
-        // ================= UPDATE LOCATION =================
-        socket.on("update-location", async (data) => {
-            try {
-                const { userId, location } = data;
-
-                if (!location?.lat || !location?.lng) return;
-
-                await captainModel.findByIdAndUpdate(userId, {
-                    location: {
-                        lat: location.lat,
-                        lng: location.lng,
-                    },
-                });
-
-                console.log("📍 Location updated");
-            } catch (err) {
-                console.log(err);
-            }
-        });
-
-        // ================= DISCONNECT =================
-        socket.on("disconnect", async () => {
-            console.log("❌ Disconnected:", socket.id);
-
-            await captainModel.findOneAndUpdate(
-                { socketId: socket.id },
-                { socketId: null }
-            );
-
-            await userModel.findOneAndUpdate(
-                { socketId: socket.id },
-                { socketId: null }
-            );
-        });
-
-        // ================= RIDE COMPLETED (from captain client) =================
-        socket.on("ride-completed", async (data) => {
-            try {
-                const { rideId } = data || {};
-                if (!rideId) return;
-
-                const ride = await Ride.findById(rideId);
-                if (!ride) return;
-
-                // mark ride completed
-                ride.status = "completed";
-                await ride.save();
-
-                // find captain by socket id
-                const captain = await captainModel.findOne({ socketId: socket.id });
-
-                if (captain) {
-                    // increment captain earnings
-                    await captainModel.findByIdAndUpdate(captain._id, {
-                        $inc: { earned: ride.fare || 0 }
-                    });
-
-                    const updatedCaptain = await captainModel.findById(captain._id);
-
-                    // notify captain client
-                    if (updatedCaptain?.socketId) {
-                        sendMessageToSocketId(updatedCaptain.socketId, {
-                            event: "ride-completed",
-                            data: { ride, captain: updatedCaptain }
-                        });
-                    }
-                }
-
-                // notify user client
-                const user = await userModel.findById(ride.user);
-                if (user?.socketId) {
-                    sendMessageToSocketId(user.socketId, {
-                        event: "ride-completed",
-                        data: { ride, captain }
-                    });
-                }
-
-            } catch (err) {
-                console.log("ride-completed handler error:", err);
-            }
-        });
-    });
-}
-
-// ================= SEND MESSAGE =================
-const sendMessageToSocketId = (socketId, messageObject) => {
-    if (!io || !socketId) return;
-
-    io.to(socketId).emit(messageObject.event, messageObject.data);
-};
->>>>>>> 34a3671 (Add complete backend)
 
 module.exports = {
     initializeSocket,
     sendMessageToSocketId,
-<<<<<<< HEAD
     getIO,
 };
 
-=======
-};
->>>>>>> 34a3671 (Add complete backend)

@@ -6,6 +6,7 @@ module.exports.createCaptain = async (opts = {}) => {
         lastname,
         email,
         password,
+        model,
         photo,
         color,
         plate,
@@ -16,13 +17,14 @@ module.exports.createCaptain = async (opts = {}) => {
 
     // Support either flat vehicle fields or a nested `vehicle` object
     const v = vehicle || {};
+    const finalModel = model || v.model;
     const finalColor = color || v.color;
     const finalPlate = plate || v.plate;
     const finalCapacity = capacity || v.capacity;
     const finalVehicleType = vehicleType || v.vehicleType;
     const finalPhoto = photo || v.photo || "";
 
-    if (!firstname || !lastname || !email || !password || !finalColor || !finalPlate || !finalCapacity || !finalVehicleType) {
+    if (!firstname || !lastname || !email || !password || !finalModel || !finalColor || !finalPlate || !finalCapacity || !finalVehicleType) {
         throw new Error('All fields are required');
     }
 
@@ -36,6 +38,7 @@ module.exports.createCaptain = async (opts = {}) => {
         email,
         password: hashedPassword,
         vehicle: {
+            model: finalModel,
             color: finalColor,
             plate: finalPlate,
             capacity: finalCapacity,

@@ -44,6 +44,12 @@ const captainSchema = new mongoose.Schema(
     },
 
     vehicle: {
+      model: {
+        type: String,
+        required: true,
+        minlength: [2, "Vehicle model must be at least 2 characters long"],
+      },
+
       color: {
         type: String,
         required: true,
