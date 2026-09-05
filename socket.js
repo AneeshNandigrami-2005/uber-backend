@@ -1,4 +1,3 @@
-
 const { Server } = require("socket.io");
 
 const userModel = require("./models/user.model");
@@ -8,26 +7,52 @@ const Ride = require("./models/ride.model");
 let io = null;
 
 // ======================================================
+// ALLOWED FRONTEND ORIGINS
+// ======================================================
+
+const allowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "https://uber-frontend-ashy.vercel.app",
+];
+
+// ======================================================
 // INITIALIZE SOCKET.IO
 // ======================================================
 
 function initializeSocket(server) {
     if (!server) {
-        throw new Error("HTTP server is required for Socket.IO");
+        throw new Error(
+            "HTTP server is required for Socket.IO"
+        );
     }
 
     io = new Server(server, {
         cors: {
-            origin: "*",
+            origin: allowedOrigins,
             methods: ["GET", "POST"],
+            credentials: true,
         },
-        transports: ["websocket", "polling"],
+
+        transports: [
+            "websocket",
+            "polling",
+        ],
     });
 
-    console.log("✅ Socket.IO initialized");
+    console.log(
+        "✅ Socket.IO initialized"
+    );
+
+    // ==================================================
+    // CONNECTION
+    // ==================================================
 
     io.on("connection", (socket) => {
-        console.log("✅ Socket connected:", socket.id);
+        console.log(
+            "✅ Socket connected:",
+            socket.id
+        );
 
         // ==================================================
         // JOIN
@@ -35,35 +60,67 @@ function initializeSocket(server) {
 
         socket.on("join", async (data) => {
             try {
-                const { userId, userType } = data || {};
+                const {
+                    userId,
+                    userType,
+                } = data || {};
 
                 if (!userId || !userType) {
-                    console.log("⚠️ Invalid join data:", data);
+                    console.log(
+                        "⚠️ Invalid join data:",
+                        data
+                    );
                     return;
                 }
 
+                // -----------------------------
+                // USER
+                // -----------------------------
+
                 if (userType === "user") {
-                    await userModel.findByIdAndUpdate(
-                        userId,
-                        {
-                            socketId: socket.id,
-                        },
-                        {
-                            new: true,
-                        }
-                    );
+                    const user =
+                        await userModel.findByIdAndUpdate(
+                            userId,
+                            {
+                                socketId: socket.id,
+                            },
+                            {
+                                new: true,
+                            }
+                        );
+
+                    if (!user) {
+                        console.log(
+                            "⚠️ User not found:",
+                            userId
+                        );
+                        return;
+                    }
                 }
 
+                // -----------------------------
+                // CAPTAIN
+                // -----------------------------
+
                 if (userType === "captain") {
-                    await captainModel.findByIdAndUpdate(
-                        userId,
-                        {
-                            socketId: socket.id,
-                        },
-                        {
-                            new: true,
-                        }
-                    );
+                    const captain =
+                        await captainModel.findByIdAndUpdate(
+                            userId,
+                            {
+                                socketId: socket.id,
+                            },
+                            {
+                                new: true,
+                            }
+                        );
+
+                    if (!captain) {
+                        console.log(
+                            "⚠️ Captain not found:",
+                            userId
+                        );
+                        return;
+                    }
                 }
 
                 console.log(
@@ -84,176 +141,247 @@ function initializeSocket(server) {
         // UPDATE CAPTAIN LOCATION
         // ==================================================
 
-        socket.on("update-location", async (data) => {
-            try {
-                const { userId, location } = data || {};
+        socket.on(
+            "update-location",
+            async (data) => {
+                try {
+                    const {
+                        userId,
+                        location,
+                    } = data || {};
 
-                if (!userId) return;
+                    if (!userId) {
+                        console.log(
+                            "⚠️ Captain userId missing"
+                        );
+                        return;
+                    }
 
-                if (
-                    location?.lat === undefined ||
-                    location?.lng === undefined
-                ) {
+                    if (
+                        location?.lat ===
+                            undefined ||
+                        location?.lng ===
+                            undefined
+                    ) {
+                        console.log(
+                            "⚠️ Invalid location:",
+                            location
+                        );
+                        return;
+                    }
+
+                    await captainModel.findByIdAndUpdate(
+                        userId,
+                        {
+                            location: {
+                                lat: location.lat,
+                                lng: location.lng,
+                            },
+                        }
+                    );
+
                     console.log(
-                        "⚠️ Invalid location:",
+                        "📍 Captain location updated:",
+                        userId,
                         location
                     );
-                    return;
+                } catch (error) {
+                    console.error(
+                        "❌ Location update error:",
+                        error.message
+                    );
                 }
-
-                await captainModel.findByIdAndUpdate(
-                    userId,
-                    {
-                        location: {
-                            lat: location.lat,
-                            lng: location.lng,
-                        },
-                    }
-                );
-
-                console.log(
-                    "📍 Captain location updated:",
-                    userId
-                );
-            } catch (error) {
-                console.error(
-                    "❌ Location update error:",
-                    error.message
-                );
             }
-        });
+        );
 
         // ==================================================
         // RIDE COMPLETED
         // ==================================================
 
-        socket.on("ride-completed", async (data) => {
-            try {
-                const { rideId } = data || {};
+        socket.on(
+            "ride-completed",
+            async (data) => {
+                try {
+                    const {
+                        rideId,
+                    } = data || {};
 
-                if (!rideId) {
-                    console.log("⚠️ rideId missing");
-                    return;
-                }
+                    if (!rideId) {
+                        console.log(
+                            "⚠️ rideId missing"
+                        );
+                        return;
+                    }
 
-                const ride = await Ride.findById(rideId);
+                    // -----------------------------
+                    // FIND RIDE
+                    // -----------------------------
 
-                if (!ride) {
-                    console.log(
-                        "⚠️ Ride not found:",
-                        rideId
-                    );
-                    return;
-                }
-
-                // Mark ride completed
-                ride.status = "completed";
-                await ride.save();
-
-                // Find captain
-                const captain = await captainModel.findOne({
-                    socketId: socket.id,
-                });
-
-                // Update captain earnings
-                if (captain) {
-                    await captainModel.findByIdAndUpdate(
-                        captain._id,
-                        {
-                            $inc: {
-                                earned: ride.fare || 0,
-                            },
-                        }
-                    );
-
-                    const updatedCaptain =
-                        await captainModel.findById(
-                            captain._id
+                    const ride =
+                        await Ride.findById(
+                            rideId
                         );
 
-                    // Notify captain
-                    if (updatedCaptain?.socketId) {
-                        sendMessageToSocketId(
-                            updatedCaptain.socketId,
+                    if (!ride) {
+                        console.log(
+                            "⚠️ Ride not found:",
+                            rideId
+                        );
+                        return;
+                    }
+
+                    // -----------------------------
+                    // COMPLETE RIDE
+                    // -----------------------------
+
+                    ride.status = "completed";
+
+                    await ride.save();
+
+                    // -----------------------------
+                    // FIND CAPTAIN
+                    // -----------------------------
+
+                    const captain =
+                        await captainModel.findOne({
+                            socketId: socket.id,
+                        });
+
+                    // -----------------------------
+                    // UPDATE CAPTAIN EARNINGS
+                    // -----------------------------
+
+                    if (captain) {
+                        await captainModel.findByIdAndUpdate(
+                            captain._id,
                             {
-                                event: "ride-completed",
+                                $inc: {
+                                    earned:
+                                        ride.fare ||
+                                        0,
+                                },
+                            }
+                        );
+
+                        const updatedCaptain =
+                            await captainModel.findById(
+                                captain._id
+                            );
+
+                        // -----------------------------
+                        // NOTIFY CAPTAIN
+                        // -----------------------------
+
+                        if (
+                            updatedCaptain?.socketId
+                        ) {
+                            sendMessageToSocketId(
+                                updatedCaptain.socketId,
+                                {
+                                    event:
+                                        "ride-completed",
+
+                                    data: {
+                                        ride,
+                                        captain:
+                                            updatedCaptain,
+                                    },
+                                }
+                            );
+                        }
+                    }
+
+                    // -----------------------------
+                    // FIND USER
+                    // -----------------------------
+
+                    const user =
+                        await userModel.findById(
+                            ride.user
+                        );
+
+                    // -----------------------------
+                    // NOTIFY USER
+                    // -----------------------------
+
+                    if (user?.socketId) {
+                        sendMessageToSocketId(
+                            user.socketId,
+                            {
+                                event:
+                                    "ride-completed",
+
                                 data: {
                                     ride,
-                                    captain: updatedCaptain,
+                                    captain,
                                 },
                             }
                         );
                     }
-                }
 
-                // Notify user
-                const user =
-                    await userModel.findById(
-                        ride.user
+                    console.log(
+                        "✅ Ride completed:",
+                        rideId
                     );
-
-                if (user?.socketId) {
-                    sendMessageToSocketId(
-                        user.socketId,
-                        {
-                            event: "ride-completed",
-                            data: {
-                                ride,
-                                captain,
-                            },
-                        }
+                } catch (error) {
+                    console.error(
+                        "❌ ride-completed error:",
+                        error.message
                     );
                 }
-
-                console.log(
-                    "✅ Ride completed:",
-                    rideId
-                );
-            } catch (error) {
-                console.error(
-                    "❌ ride-completed error:",
-                    error.message
-                );
             }
-        });
+        );
 
         // ==================================================
         // DISCONNECT
         // ==================================================
 
-        socket.on("disconnect", async (reason) => {
-            console.log(
-                "❌ Socket disconnected:",
-                socket.id,
-                "Reason:",
-                reason
-            );
-
-            try {
-                await captainModel.findOneAndUpdate(
-                    {
-                        socketId: socket.id,
-                    },
-                    {
-                        socketId: null,
-                    }
+        socket.on(
+            "disconnect",
+            async (reason) => {
+                console.log(
+                    "❌ Socket disconnected:",
+                    socket.id,
+                    "Reason:",
+                    reason
                 );
 
-                await userModel.findOneAndUpdate(
-                    {
-                        socketId: socket.id,
-                    },
-                    {
-                        socketId: null,
-                    }
-                );
-            } catch (error) {
-                console.error(
-                    "❌ Disconnect cleanup error:",
-                    error.message
-                );
+                try {
+                    // -----------------------------
+                    // REMOVE CAPTAIN SOCKET ID
+                    // -----------------------------
+
+                    await captainModel.findOneAndUpdate(
+                        {
+                            socketId:
+                                socket.id,
+                        },
+                        {
+                            socketId: null,
+                        }
+                    );
+
+                    // -----------------------------
+                    // REMOVE USER SOCKET ID
+                    // -----------------------------
+
+                    await userModel.findOneAndUpdate(
+                        {
+                            socketId:
+                                socket.id,
+                        },
+                        {
+                            socketId: null,
+                        }
+                    );
+                } catch (error) {
+                    console.error(
+                        "❌ Disconnect cleanup error:",
+                        error.message
+                    );
+                }
             }
-        });
+        );
     });
 
     return io;
@@ -296,6 +424,13 @@ function sendMessageToSocketId(
         messageObject.event,
         messageObject.data
     );
+
+    console.log(
+        "📤 Socket message sent:",
+        messageObject.event,
+        "to:",
+        socketId
+    );
 }
 
 // ======================================================
@@ -321,4 +456,3 @@ module.exports = {
     sendMessageToSocketId,
     getIO,
 };
-
