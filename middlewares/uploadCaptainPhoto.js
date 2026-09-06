@@ -1,22 +1,12 @@
-    const multer = require("multer");
-const path = require("path");
+const multer = require("multer");
 
-const storage = multer.diskStorage({
-
-    destination: (req, file, cb) => {
-        cb(null, "uploads/");
-    },
-
-    filename: (req, file, cb) => {
-
-        const uniqueName =
-            Date.now() +
-            path.extname(file.originalname);
-
-        cb(null, uniqueName);
+// Vercel functions have an ephemeral, read-only filesystem.
+// Keep uploads in memory until Cloudinary stores them permanently.
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024,
     },
 });
-
-const upload = multer({ storage });
 
 module.exports = upload;

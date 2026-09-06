@@ -1,4 +1,5 @@
 const userModel = require('../models/user.model');
+const cloudinary = require('../config/cloudinary');
 const blackListTokenModel = require('../models/blacklistToken.model');
 
 const { validationResult } = require('express-validator');
@@ -159,7 +160,24 @@ module.exports.uploadProfileImage = async (req, res, next) => {
             });
         }
 
-        const profileImage = req.file.path;
+        const profileImage = await new Promise((resolve, reject) => {
+            const uploadStream = cloudinary.uploader.upload_stream(
+                {
+                    folder: 'users',
+                    resource_type: 'image',
+                },
+                (error, result) => {
+                    if (error) {
+                        reject(error);
+                        return;
+                    }
+
+                    resolve(result.secure_url);
+                }
+            );
+
+            uploadStream.end(req.file.buffer);
+        });
 
         const updatedUser = await userModel.findByIdAndUpdate(
             userId,

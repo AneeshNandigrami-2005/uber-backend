@@ -98,20 +98,28 @@ module.exports.registerCaptain = async (req, res) => {
 
     if (req.file) {
       try {
-        const uploadResult = await cloudinary.uploader.upload(
-          req.file.path,
-          {
-            folder: "captains",
-            resource_type: "image",
-          }
-        );
+        const uploadResult = await new Promise((resolve, reject) => {
+          const uploadStream = cloudinary.uploader.upload_stream(
+            {
+              folder: "captains",
+              resource_type: "image",
+            },
+            (error, result) => {
+              if (error) {
+                reject(error);
+                return;
+              }
+
+              resolve(result);
+            }
+          );
+
+          uploadStream.end(req.file.buffer);
+        });
 
         photo = uploadResult.secure_url || "";
       } catch (err) {
         console.error("CLOUDINARY UPLOAD ERROR:", err.message || err);
-        // Fallback: use the local file path so signup can continue.
-        // This keeps the signup from failing if cloudinary is misconfigured.
-        photo = req.file.path || "";
       }
     }
 
