@@ -24,11 +24,25 @@ connectedToDB();
 // CORS
 // ======================================================
 
+const configuredOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
 const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://uber-frontend-ashy.vercel.app",
+    ...configuredOrigins,
 ];
+
+const isAllowedOrigin = (origin) => {
+    if (allowedOrigins.includes(origin)) {
+        return true;
+    }
+
+    // Allow Vercel preview URLs for this app without opening CORS to all sites.
+    return /^https:\/\/[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app$/i.test(origin);
+};
 
 app.use(
     cors({
@@ -39,7 +53,7 @@ app.use(
                 return callback(null, true);
             }
 
-            if (allowedOrigins.includes(origin)) {
+            if (isAllowedOrigin(origin)) {
                 return callback(null, true);
             }
 

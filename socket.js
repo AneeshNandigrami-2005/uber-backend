@@ -10,10 +10,15 @@ let io = null;
 // ALLOWED FRONTEND ORIGINS
 // ======================================================
 
+const configuredOrigins = (process.env.FRONTEND_URL || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean);
+
 const allowedOrigins = [
     "http://localhost:5173",
     "http://localhost:5174",
-    "https://uber-frontend-ashy.vercel.app",
+    ...configuredOrigins,
 ];
 
 // ======================================================
@@ -29,7 +34,14 @@ function initializeSocket(server) {
 
     io = new Server(server, {
         cors: {
-            origin: allowedOrigins,
+            origin: (origin, callback) => {
+                if (!origin || allowedOrigins.includes(origin) || /^https:\/\/[a-z0-9-]+(?:-[a-z0-9-]+)*\.vercel\.app$/i.test(origin)) {
+                    callback(null, true);
+                    return;
+                }
+
+                callback(new Error("Not allowed by CORS"));
+            },
             methods: ["GET", "POST"],
             credentials: true,
         },
