@@ -3,9 +3,23 @@ const jwt = require('jsonwebtoken');
 const blackListTokenModel = require('../models/blacklistToken.model');
 const captainModel = require('../models/captain.model');
 
+const getTokenFromRequest = (req) => {
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+
+    if (typeof authHeader === 'string') {
+        const token = authHeader.match(/^Bearer\s+(.+)$/i)?.[1];
+
+        if (token) {
+            return token;
+        }
+    }
+
+    return req.cookies?.token || null;
+};
+
 module.exports.authUser = async (req, res, next) => {
     try {
-        const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+        const token = getTokenFromRequest(req);
 
         if (!token) {
             return res.status(401).json({ message: 'Unauthorized' });
@@ -34,7 +48,7 @@ module.exports.authUser = async (req, res, next) => {
 
 module.exports.authCaptain = async (req, res, next) => {
     try {
-        const token = req.cookies?.token || req.headers.authorization?.split(' ')[1];
+        const token = getTokenFromRequest(req);
 
         if (!token) {
             return res.status(401).json({ message: "Unauthorized" });
