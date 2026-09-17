@@ -1,20 +1,16 @@
-
+const http = require("http");
 const app = require("../app");
+const { initializeSocket } = require("../socket");
 
-// Vercel uses the exported Express app as its serverless function.
-module.exports = app;
+const port = process.env.PORT || 4000;
 
-// Keep the same entry point usable for local development and Render.
-if (require.main === module) {
-  const http = require("http");
-  const { initializeSocket } = require("../socket");
-  const port = process.env.PORT || 4000;
-  const server = http.createServer(app);
+// Create HTTP server
+const server = http.createServer(app);
 
-  initializeSocket(server);
+// Initialize Socket.IO
+initializeSocket(server);
 
-  server.listen(port, () => {
+// Start server
+server.listen(port, () => {
     console.log(`Server is Running on port ${port}`);
-  });
-}
-
+});
